@@ -11,7 +11,7 @@ dotenv.config();
 const dbUser = process.env.PGUSER;
 const dbPassword = process.env.PGPASSWORD;
 
-const child = spawn('npm', ['run', 'migrate', 'up']);
+const child = spawn('npm', ['run', 'migrate:prd', 'up']);
 
 child.stdout.on('data', (data) => {
     console.log(`${data}`);
