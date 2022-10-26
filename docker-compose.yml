@@ -5,6 +5,8 @@ services:
     build: .
     depends_on: 
       - db
+    volumes: 
+    - ${PWD}/ca.crt:/opt/ca/ca.crt
     ports:
       - "1212:1212"
     environment:
