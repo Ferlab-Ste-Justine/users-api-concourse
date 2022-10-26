@@ -30,7 +30,10 @@ child.stderr.on('data', (data) => {
 
 child.on('exit', () => {
     if (hasError) {
+        console.log("Error(s) occurred during the migration");
         //Important to notify that error(s) occurred.
         return process.exit(2);
+    } else {
+        return process.exit(0);
     }
 });
