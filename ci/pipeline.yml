@@ -1,0 +1,80 @@
+resources:
+- name: version
+  type: semver
+  icon: aws
+  source:
+    driver: s3
+    endpoint: https://s3.cqgc.hsj.rtss.qc.ca
+    initial_version: {{initial_version}}
+    access_key_id: ((minio.access-key-id))
+    secret_access_key: ((minio.secret-access-key))
+    bucket: {{s3_bucket}}
+    region_name: {{s3_region}}
+    key: version/users-api
+
+- name: git-users-api
+  type: git
+  icon: github
+  source:
+    uri: git@github.com:Ferlab-Ste-Justine/users-api.git
+    branch: {{branch}}
+    private_key: ((private-repo-key))
+    # ignore_paths: [ci/]
+
+- name: img-users-api
+  type: registry-image
+  icon: docker
+  source:
+    username: ((docker.username))
+    password: ((docker.password))
+    repository: ferlabcrsj/concourse-demo
+    tag: latest
+
+jobs:
+- name: publish
+  serial_groups: [version]
+  plan:
+  - in_parallel:
+    - get: git-users-api
+      trigger: true
+    - get: version
+      params: {bump: patch}
+  - task: prepare-image
+    file: git-users-api/ci/tasks/prepare-image.yml
+  - task: build-image
+    privileged: true
+    config:
+      platform: linux
+      image_resource:
+        type: registry-image
+        source:
+          repository: concourse/oci-build-task
+      inputs:
+      # Source including Dockerfile
+      - name: git-users-api
+        path: .
+      # Output from prepare image
+      - name: output
+        path: .
+      outputs:
+      - name: image
+      run:
+        path: build
+  - put: img-users-api
+    params:
+      # Path is from above output and image.tar is the default name
+      image: image/image.tar
+      # additional_tags: version/version
+      additional_tags: output/version
+  - put: version
+    params: {file: version/version}
+
+- name: major
+  plan:
+  - put: version
+    params: {bump: major}
+
+- name: minor
+  plan:
+  - put: version
+    params: {bump: minor}
