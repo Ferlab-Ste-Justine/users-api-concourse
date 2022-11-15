@@ -31,16 +31,18 @@ resources:
 
 - name: pull-request
   type: pull-request
-  check_every: 24h
+  check_every: 1m
   webhook_token: ((webhook-token))
   source:
     base_branch: main
     repository: Ferlab-Ste-Justine/users-api-concourse
-    access_token: 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
+    access_token: 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
 
 - name: git-users-api
   type: git
   icon: github
+  check_every: 1m
+  webhook_token: ((webhook-token))
   source:
     uri: git@github.com:Ferlab-Ste-Justine/users-api-concourse.git
     branch: {{branch}}
@@ -51,7 +53,7 @@ resources:
   type: git
   icon: github
   webhook_token: DEAFumtxLCfNQXyjpcgP
-  check_every: 30m
+  check_every: 1m
   source:
     uri: git@github.com:Ferlab-Ste-Justine/users-api-concourse.git
     branch: {{branch}}
@@ -140,6 +142,12 @@ jobs:
       image: image/image.tar
       # additional_tags: version/version
       additional_tags: output/version
+  - put: img-users-api
+    params:
+      # Path is from above output and image.tar is the default name
+      image: image/image.tar
+      # additional_tags: version/version
+      additional_tags: output/version-hash
   - put: version
     params: {file: version/version}
 
