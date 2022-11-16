@@ -1,8 +1,6 @@
 groups:
   - name: main
     jobs:
-      - major
-      - minor
       - build-and-publish
       - publish
   - name: pull-request
@@ -16,19 +14,6 @@ resource_types:
     repository: teliaoss/github-pr-resource
 
 resources:
-- name: version
-  type: semver
-  icon: aws
-  source:
-    driver: s3
-    endpoint: https://s3.cqgc.hsj.rtss.qc.ca
-    initial_version: {{initial_version}}
-    access_key_id: ((minio.access-key-id))
-    secret_access_key: ((minio.secret-access-key))
-    bucket: {{s3_bucket}}
-    region_name: {{s3_region}}
-    key: version/users-api
-
 - name: pull-request
   type: pull-request
   check_every: 1m
@@ -41,7 +26,7 @@ resources:
 - name: git-users-api
   type: git
   icon: github
-  check_every: 1m
+  check_every: 30s
   webhook_token: ((webhook-token))
   source:
     uri: git@github.com:Ferlab-Ste-Justine/users-api-concourse.git
@@ -52,7 +37,7 @@ resources:
 - name: git-tag-users-api
   type: git
   icon: github
-  check_every: 1m
+  check_every: 30s
   source:
     uri: git@github.com:Ferlab-Ste-Justine/users-api-concourse.git
     branch: {{branch}}
@@ -120,8 +105,6 @@ jobs:
   - in_parallel:
     - get: git-users-api
       trigger: true
-    - get: version
-      params: {bump: patch}
   - task: prepare-image
     file: git-users-api/ci/tasks/prepare-image.yml
   - task: build-image
@@ -150,9 +133,8 @@ jobs:
       additional_tags: output/version
   - put: img-users-api
     params:
+      image: image/image.tar
       additional_tags: git-users-api/.git/ref
-  - put: version
-    params: {file: version/version}
 
 - name: publish
   serial_groups: [version]
@@ -178,19 +160,11 @@ jobs:
           git rev-list -n 1 $tag > sha   
       outputs:
         - name: git-tag-users-api
+  - load_var: tag
+    file: git-tag-users-api/sha
   - put: img-users-api-tag
     inputs: ["git-tag-users-api"]
     params:    
       pull_repository: ferlabcrsj/concourse-demo
-      pull_tag: {file: git-tag-users-api/sha}
+      pull_tag: ((.:tag))
       tag_file: git-tag-users-api/.git/ref
-
-- name: major
-  plan:
-  - put: version
-    params: {bump: major}
-
-- name: minor
-  plan:
-  - put: version
-    params: {bump: minor}
