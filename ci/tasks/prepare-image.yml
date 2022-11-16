@@ -5,7 +5,6 @@ image_resource:
     repository: bitnami/git
 inputs:
 - name: git-users-api
-- name: version
 outputs:
 - name: output
 run:
