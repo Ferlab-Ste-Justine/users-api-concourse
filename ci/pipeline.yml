@@ -52,7 +52,6 @@ resources:
 - name: git-tag-users-api
   type: git
   icon: github
-  webhook_token: DEAFumtxLCfNQXyjpcgP
   check_every: 1m
   source:
     uri: git@github.com:Ferlab-Ste-Justine/users-api-concourse.git
@@ -70,6 +69,14 @@ resources:
     password: ((docker.password))
     repository: ferlabcrsj/concourse-demo
     tag: latest
+
+- name: img-users-api-tag
+  type: docker-image
+  icon: docker
+  source:
+    username: ((docker.username))
+    password: ((docker.password))
+    repository: ferlabcrsj/concourse-demo
 
 jobs:
 - name: test-pr
@@ -140,14 +147,10 @@ jobs:
     params:
       # Path is from above output and image.tar is the default name
       image: image/image.tar
-      # additional_tags: version/version
       additional_tags: output/version
   - put: img-users-api
     params:
-      # Path is from above output and image.tar is the default name
-      image: image/image.tar
-      # additional_tags: version/version
-      additional_tags: output/version-hash
+      additional_tags: git-users-api/.git/ref
   - put: version
     params: {file: version/version}
 
@@ -156,22 +159,6 @@ jobs:
   plan:
   - get: git-tag-users-api
     trigger: true
-  - task: build-image
-    privileged: true
-    config:
-      platform: linux
-      image_resource:
-        type: registry-image
-        source:
-          repository: concourse/oci-build-task
-      inputs:
-      # Source including Dockerfile
-      - name: git-tag-users-api
-        path: .
-      outputs:
-      - name: image
-      run:
-        path: build
   - task: prep-for-tag
     config:
       platform: linux
@@ -187,13 +174,16 @@ jobs:
         - -c
         - |
           cd git-tag-users-api
-          git tag --list "v*" --sort=creatordate > tag
+          tag=`cat .git/ref`
+          git rev-list -n 1 $tag > sha   
       outputs:
         - name: git-tag-users-api
-  - put: img-users-api
-    params:
-      image: image/image.tar
-      additional_tags: git-tag-users-api/tag
+  - put: img-users-api-tag
+    inputs: ["git-tag-users-api"]
+    params:    
+      pull_repository: ferlabcrsj/concourse-demo
+      pull_tag: {file: git-tag-users-api/sha}
+      tag_file: git-tag-users-api/.git/ref
 
 - name: major
   plan:
