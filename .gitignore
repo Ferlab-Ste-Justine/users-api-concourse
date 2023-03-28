@@ -4,3 +4,4 @@ node_modules
 /dist
 /.idea/
 ci/id_rsa
+ci/params.yml

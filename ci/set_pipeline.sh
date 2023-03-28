@@ -6,7 +6,8 @@ target=main
 # Have to create current_dir to get absolute path of the git repository, $(dirname pwd) returns .
 current_dir=$(pwd)
 repo_dir=$(dirname $current_dir)
-pipeline=$(basename $repo_dir)
+pipeline=test-pip
+# pipeline=$(basename $repo_dir)
 branch=feature/issam-dev
 initial_version=1.0.0
 tag_as_latest=true

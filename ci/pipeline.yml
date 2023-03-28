@@ -21,7 +21,7 @@ resources:
   source:
     base_branch: main
     repository: Ferlab-Ste-Justine/users-api-concourse
-    access_token: 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
+    access_token: (((git.access-token))
 
 - name: git-users-api
   type: git
