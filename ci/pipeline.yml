@@ -21,7 +21,7 @@ resources:
   source:
     base_branch: main
     repository: Ferlab-Ste-Justine/users-api-concourse
-    access_token: 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
+    access_token: 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
 
 - name: git-users-api
   type: git
@@ -32,7 +32,7 @@ resources:
     uri: git@github.com:Ferlab-Ste-Justine/users-api-concourse.git
     branch: {{branch}}
     private_key: ((private-repo-key))
-    # ignore_paths: [ci/]
+    ignore_paths: [ci/]
 
 - name: git-tag-users-api
   type: git
@@ -73,6 +73,9 @@ jobs:
     params:
       path: pull-request
       status: pending
+      context: test
+    get_params:
+      integration_tool: checkout
   - task: unit-test
     config:
       platform: linux
@@ -89,24 +92,71 @@ jobs:
             cd pull-request
             git log --graph --all --color --pretty=format:"%x1b[31m%h%x09%x1b[32m%d%x1b[0m%x20%s" > log.txt
             cat log.txt
-    on_failure:
-      put: pull-request
-      params:
-        path: pull-request
-        status: failure
-  - put: pull-request
-    params:
-      path: pull-request
-      status: success
+  on_failure:
+    do: 
+      - put: pull-request
+        params:
+          path: pull-request
+          status: failure
+          context: test
+  on_success:
+    do: 
+      - put: pull-request
+        params:
+          path: pull-request
+          status: success
+          context: test
+  on_abort:
+    do: 
+      - put: pull-request
+        params:
+          path: pull-request
+          status: error
+          context: test
+  on_error:
+    do: 
+      - put: pull-request
+        params:
+          path: pull-request
+          status: error
+          context: test
+  # - put: pull-request
+  #   params:
+  #     path: pull-request
+  #     status: success
 
 - name: build-and-publish
-  serial_groups: [version]
+  # serial_groups: [version]
   plan:
-  - in_parallel:
-    - get: git-users-api
-      trigger: true
+  - get: git-users-api
+    trigger: true
   - task: prepare-image
-    file: git-users-api/ci/tasks/prepare-image.yml
+    # file: git-users-api/ci/tasks/prepare-image.yml
+    config:
+      platform: linux
+      image_resource:
+        type: docker-image
+        source:
+          repository: concourse/git-resource
+      inputs:
+        - name: git-users-api
+      outputs:
+        - name: output
+      run:
+        path: bash
+        args:
+        - -c
+        - |
+          ROOT_FOLDER=$(pwd)
+
+          cp -R ${ROOT_FOLDER}/git-users-api/* ${ROOT_FOLDER}/output
+          rm -fr ${ROOT_FOLDER}/output/ci && rm -fr ${ROOT_FOLDER}/output/.git
+
+          pushd git-users-api
+              VERSION=`echo "$(git rev-parse --short HEAD)-$(date +'%s')"`
+          popd
+
+          echo "${VERSION}" > ${ROOT_FOLDER}/output/version
   - task: build-image
     privileged: true
     config:
