@@ -218,4 +218,3 @@ jobs:
     params:
       image: image/image.tar
       additional_tags: git-users-api/.git/ref
-
