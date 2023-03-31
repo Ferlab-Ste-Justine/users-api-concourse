@@ -31,7 +31,7 @@ resources:
   source:
     username: ((docker.username))
     password: ((docker.password))
-    repository: ferlabcrsj/concourse-demo
+    repository: index.docker.io/ferlabcrsj/concourse-demo
     tag: latest
 
 jobs:
