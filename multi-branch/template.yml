@@ -30,7 +30,7 @@ jobs:
   - in_parallel:
     - get: pull-request
       trigger: true
-    - get: git-tag-users-api
+    - get: git-users-api
   - task: test-echo
     config:
       platform: linux
@@ -39,7 +39,7 @@ jobs:
         source:
           repository: concourse/git-resource
       inputs:
-        - name: git-tag-users-api
+        - name: git-users-api
       run:
         path: sh
         args:

@@ -24,7 +24,7 @@ resources:
 - name: feature-branches
   type: git-branches
   source:
-    uri: it@github.com:Ferlab-Ste-Justine/users-api-concourse.git
+    uri: git@github.com:Ferlab-Ste-Justine/users-api-concourse.git
     private_key: ((private-repo-key))
     # The "(?P<name>pattern)" syntax defines a named capture group.
     # aoldershaw/git-branches-resource emits the value of each named capture
@@ -50,7 +50,7 @@ resources:
   webhook_token: ((webhook-token))
   source:
     uri: git@github.com:Ferlab-Ste-Justine/users-api-concourse.git
-    branch: {{branch}}
+    branch: feature/test-issam
     private_key: ((private-repo-key))
     ignore_paths: [ci/]
 
@@ -89,7 +89,7 @@ jobs:
   - in_parallel:
     - get: feature-branches
       trigger: true
-    - get: git-tag-users-api
+    - get: git-users-api
   - load_var: branches
     file: feature-branches/branches.json
   - across:
