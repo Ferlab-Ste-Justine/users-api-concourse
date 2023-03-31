@@ -7,6 +7,7 @@ target=main
 current_dir=$(pwd)
 repo_dir=$(dirname $current_dir)
 pipeline=test-pip
+pipeline_poc=poc-mult-env
 # pipeline=$(basename $repo_dir)
 branch=feature/issam-dev
 initial_version=1.0.0

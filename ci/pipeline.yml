@@ -1,7 +1,4 @@
 groups:
-  - name: multi-branch
-    jobs:
-      - set-feature-pipelines
   - name: main
     jobs:
       - build-and-publish
@@ -15,25 +12,8 @@ resource_types:
   type: docker-image
   source:
     repository: teliaoss/github-pr-resource
-- name: git-branches
-  type: registry-image
-  source:
-    repository: aoldershaw/git-branches-resource
 
 resources:
-- name: feature-branches
-  type: git-branches
-  source:
-    uri: git@github.com:Ferlab-Ste-Justine/users-api-concourse.git
-    private_key: ((private-repo-key))
-    # The "(?P<name>pattern)" syntax defines a named capture group.
-    # aoldershaw/git-branches-resource emits the value of each named capture
-    # group under the `groups` key.
-    #
-    # e.g. feature/some-feature ==> {"groups": {"feature": "some-feature"}}
-    branch_regex: 'feature/(?P<feature>.*)'
-    # branch_regex: release/(?P<version_minor>\d+\.\d+)\.x
-
 - name: pull-request
   type: pull-request
   check_every: 1m
@@ -41,7 +21,7 @@ resources:
   source:
     base_branch: main
     repository: Ferlab-Ste-Justine/users-api-concourse
-    access_token: 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
+    access_token: ((git.access-token))
 
 - name: git-users-api
   type: git
@@ -50,7 +30,7 @@ resources:
   webhook_token: ((webhook-token))
   source:
     uri: git@github.com:Ferlab-Ste-Justine/users-api-concourse.git
-    branch: feature/test-issam
+    branch: {{branch}}
     private_key: ((private-repo-key))
     ignore_paths: [ci/]
 
@@ -84,26 +64,6 @@ resources:
     repository: ferlabcrsj/concourse-demo
 
 jobs:
-- name: set-feature-pipelines
-  plan:
-  - in_parallel:
-    - get: feature-branches
-      trigger: true
-    - get: git-users-api
-  - load_var: branches
-    file: feature-branches/branches.json
-  - across:
-    - var: branch
-      values: ((.:branches))
-    set_pipeline: dev
-    file: git-tag-users-api/ci/multi-branch/template.yml
-    instance_vars: {feature: ((.:branch.groups.feature))}
-    vars: {branch: ((.:branch.name))}
-
-
-
-
-
 - name: publish
   serial_groups: [version]
   plan:

@@ -12,7 +12,7 @@ resources:
   source:
     base_branch: main
     repository: Ferlab-Ste-Justine/users-api-concourse
-    access_token: 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
+    access_token: ((git.access-token))
     states: ["OPEN"]
 - name: git-users-api
   type: git
