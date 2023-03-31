@@ -22,7 +22,7 @@ resources:
   source:
     uri: git@github.com:Ferlab-Ste-Justine/users-api-concourse.git
     branch: ((branch))
-    private_key: ((private-repo-key))
+    private_key: ((git.private-repo-key))
     ignore_paths: [ci/]
 jobs:
 - name: test-my-branch
