@@ -1,4 +1,7 @@
 groups:
+  - name: multi-branch
+    jobs:
+      - set-feature-pipelines
   - name: main
     jobs:
       - build-and-publish
@@ -12,8 +15,25 @@ resource_types:
   type: docker-image
   source:
     repository: teliaoss/github-pr-resource
+- name: git-branches
+  type: registry-image
+  source:
+    repository: aoldershaw/git-branches-resource
 
 resources:
+- name: feature-branches
+  type: git-branches
+  source:
+    uri: it@github.com:Ferlab-Ste-Justine/users-api-concourse.git
+    private_key: ((private-repo-key))
+    # The "(?P<name>pattern)" syntax defines a named capture group.
+    # aoldershaw/git-branches-resource emits the value of each named capture
+    # group under the `groups` key.
+    #
+    # e.g. feature/some-feature ==> {"groups": {"feature": "some-feature"}}
+    branch_regex: 'feature/(?P<feature>.*)'
+    # branch_regex: release/(?P<version_minor>\d+\.\d+)\.x
+
 - name: pull-request
   type: pull-request
   check_every: 1m
@@ -21,7 +41,7 @@ resources:
   source:
     base_branch: main
     repository: Ferlab-Ste-Justine/users-api-concourse
-    access_token: (((git.access-token))
+    access_token: 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
 
 - name: git-users-api
   type: git
@@ -64,6 +84,59 @@ resources:
     repository: ferlabcrsj/concourse-demo
 
 jobs:
+- name: set-feature-pipelines
+  plan:
+  - in_parallel:
+    - get: feature-branches
+      trigger: true
+    - get: git-tag-users-api
+  - load_var: branches
+    file: feature-branches/branches.json
+  - across:
+    - var: branch
+      values: ((.:branches))
+    set_pipeline: dev
+    file: git-tag-users-api/ci/multi-branch/template.yml
+    instance_vars: {feature: ((.:branch.groups.feature))}
+    vars: {branch: ((.:branch.name))}
+
+
+
+
+
+- name: publish
+  serial_groups: [version]
+  plan:
+  - get: git-tag-users-api
+    trigger: true
+  - task: prep-for-tag
+    config:
+      platform: linux
+      image_resource:
+        type: docker-image
+        source:
+          repository: concourse/git-resource
+      inputs:
+        - name: git-tag-users-api
+      run:
+        path: sh
+        args:
+        - -c
+        - |
+          cd git-tag-users-api
+          tag=`cat .git/ref`
+          git rev-list -n 1 $tag > sha   
+      outputs:
+        - name: git-tag-users-api
+  - load_var: tag
+    file: git-tag-users-api/sha
+  - put: img-users-api-tag
+    inputs: ["git-tag-users-api"]
+    params:    
+      pull_repository: ferlabcrsj/concourse-demo
+      pull_tag: ((.:tag))
+      tag_file: git-tag-users-api/.git/ref
+      
 - name: test-pr
   plan:
   - get: pull-request
@@ -186,35 +259,3 @@ jobs:
       image: image/image.tar
       additional_tags: git-users-api/.git/ref
 
-- name: publish
-  serial_groups: [version]
-  plan:
-  - get: git-tag-users-api
-    trigger: true
-  - task: prep-for-tag
-    config:
-      platform: linux
-      image_resource:
-        type: docker-image
-        source:
-          repository: concourse/git-resource
-      inputs:
-        - name: git-tag-users-api
-      run:
-        path: sh
-        args:
-        - -c
-        - |
-          cd git-tag-users-api
-          tag=`cat .git/ref`
-          git rev-list -n 1 $tag > sha   
-      outputs:
-        - name: git-tag-users-api
-  - load_var: tag
-    file: git-tag-users-api/sha
-  - put: img-users-api-tag
-    inputs: ["git-tag-users-api"]
-    params:    
-      pull_repository: ferlabcrsj/concourse-demo
-      pull_tag: ((.:tag))
-      tag_file: git-tag-users-api/.git/ref
