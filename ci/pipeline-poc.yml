@@ -49,4 +49,4 @@ jobs:
     set_pipeline: dev
     file: git-users-api/multi-branch/template.yml
     instance_vars: {feature: ((.:branch.groups.feature))}
-    vars: {branch: ((.:branch.name))}
+    vars: {branch: ((.:branch.name)), feature-name: ((.:branch.groups.feature))}
