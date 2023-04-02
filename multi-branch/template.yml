@@ -26,13 +26,12 @@ resources:
     ignore_paths: [ci/]
 
 - name: img-users-api
-  type: registry-image
+  type: docker-image
   icon: docker
   source:
     username: ((docker.username))
     password: ((docker.password))
     repository: index.docker.io/ferlabcrsj/concourse-demo
-    tag: latest
 
 jobs:
 - name: build-and-publish
@@ -69,29 +68,9 @@ jobs:
           popd
 
           echo "${VERSION}" > ${ROOT_FOLDER}/output/version
-  - task: build-image
-    privileged: true
-    config:
-      platform: linux
-      image_resource:
-        type: registry-image
-        source:
-          repository: concourse/oci-build-task
-      inputs:
-      # Source including Dockerfile
-      - name: git-users-api
-        path: .
-      # Output from prepare image
-      - name: output
-        path: .
-      outputs:
-      - name: image
-      run:
-        path: build
   - put: img-users-api
     params:
-      # Path is from above output and image.tar is the default name
-      image: image/image.tar
+      build: git-users-api
       additional_tags: output/version
 
 

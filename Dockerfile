@@ -1,10 +1,13 @@
-# Second image, that creates an image for production
-FROM node:18.8-alpine3.15 AS prod-image
+# First image to compile typescript to javascript
+FROM node:18.8-alpine3.15 AS build-image
 WORKDIR /app
 COPY . .
 RUN npm ci && npm run build && npm run test
 
-COPY ./app/dist ./dist
+# Second image, that creates an image for production
+FROM node:18.8-alpine3.15 AS prod-image
+WORKDIR /app
+COPY --from=build-image ./app/dist ./dist
 COPY package* ./
 COPY migrations ./migrations
 COPY migrateUpWithWrapper.mjs ./migrateUpWithWrapper.mjs
