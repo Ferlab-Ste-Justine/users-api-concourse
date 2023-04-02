@@ -53,7 +53,8 @@ if [ -z "${target}" ] || [ -z "${pipeline}" ] || [ -z "${branch}" ] || [ -z "${t
   usage
 fi
 
-fly -t $target sp -n -p $pipeline_poc -c ./pipeline-poc.yml  \
+# fly -t $target sp -n -p $pipeline_poc -c ./pipeline-poc.yml  \
+fly -t $target sp -n -p $pipeline -c ./pipeline.yml  \
     --var "private-repo-key=$(cat id_rsa)" \
     -v branch=$branch \
     -v initial_version=$initial_version \

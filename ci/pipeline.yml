@@ -52,7 +52,7 @@ resources:
   source:
     username: ((docker.username))
     password: ((docker.password))
-    repository: ferlabcrsj/concourse-demo
+    repository: index.docker.io/ferlabcrsj/concourse-demo
     tag: latest
 
 - name: img-users-api-tag
@@ -61,7 +61,7 @@ resources:
   source:
     username: ((docker.username))
     password: ((docker.password))
-    repository: ferlabcrsj/concourse-demo
+    repository: index.docker.io/ferlabcrsj/concourse-demo
 
 jobs:
 - name: publish
@@ -207,8 +207,17 @@ jobs:
         path: .
       outputs:
       - name: image
+      params:
+        DOCKER_USERNAME: ((docker.username))
+        DOCKER_PASSWORD: ((docker.password))
       run:
-        path: build
+        path: sh
+        args: 
+        - -c
+        - |
+          docker login -u="${DOCKER_USERNAME}" -p="${DOCKER_PASSWORD}"
+          build
+
   - put: img-users-api
     params:
       # Path is from above output and image.tar is the default name

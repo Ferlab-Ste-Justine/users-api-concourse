@@ -43,6 +43,7 @@ jobs:
     - get: git-users-api
   - load_var: branches
     file: feature-branches/branches.json
+  # Run a step multiple times with different combinations of variable values.
   - across:
     - var: branch
       values: ((.:branches))
