@@ -1,0 +1,53 @@
+groups:
+  - name: multi-branch
+    jobs:
+      - set-feature-pipelines
+
+resource_types:
+- name: git-branches
+  type: registry-image
+  source:
+    repository: aoldershaw/git-branches-resource
+
+resources:
+- name: feature-branches
+  type: git-branches
+  source:
+    uri: git@github.com:Ferlab-Ste-Justine/users-api-concourse.git
+    private_key: ((private-repo-key))
+    # The "(?P<name>pattern)" syntax defines a named capture group.
+    # aoldershaw/git-branches-resource emits the value of each named capture
+    # group under the `groups` key.
+    #
+    # e.g. feature/some-feature ==> {"groups": {"feature": "some-feature"}}
+    branch_regex: 'feature/(?P<feature>.*)'
+    # branch_regex: release/(?P<version_minor>\d+\.\d+)\.x
+
+- name: git-users-api
+  type: git
+  icon: github
+  check_every: 30s
+  webhook_token: ((webhook-token))
+  source:
+    uri: git@github.com:Ferlab-Ste-Justine/users-api-concourse.git
+    branch: {{branch}}
+    private_key: ((git.private-repo-key))
+    ignore_paths: [ci/]
+
+jobs:
+- name: set-feature-pipelines
+  plan:
+  - in_parallel:
+    - get: feature-branches
+      trigger: true
+    - get: git-users-api
+  - load_var: branches
+    file: feature-branches/branches.json
+  # Run a step multiple times with different combinations of variable values.
+  - across:
+    - var: branch
+      values: ((.:branches))
+    set_pipeline: dev
+    file: git-users-api/multi-branch/template.yml
+    instance_vars: {feature: ((.:branch.groups.feature))}
+    vars: {branch: ((.:branch.name)), feature-name: ((.:branch.groups.feature))}

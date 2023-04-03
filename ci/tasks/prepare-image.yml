@@ -1,0 +1,11 @@
+platform: linux
+image_resource:
+  type: registry-image
+  source:
+    repository: bitnami/git
+inputs:
+- name: git-users-api
+outputs:
+- name: output
+run:
+  path: git-users-api/ci/tasks/prepare-image.sh

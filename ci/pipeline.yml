@@ -1,0 +1,257 @@
+groups:
+  - name: main
+    jobs:
+      - build-test
+      - build-and-publish
+      - publish
+  - name: pull-request
+    jobs:
+      - test-pr
+
+resource_types:
+- name: pull-request
+  type: docker-image
+  source:
+    repository: teliaoss/github-pr-resource
+
+resources:
+- name: pull-request
+  type: pull-request
+  check_every: 1m
+  webhook_token: ((webhook-token))
+  source:
+    base_branch: main
+    repository: Ferlab-Ste-Justine/users-api-concourse
+    access_token: ((git.access-token))
+
+- name: git-users-api
+  type: git
+  icon: github
+  check_every: 30s
+  webhook_token: ((webhook-token))
+  source:
+    uri: git@github.com:Ferlab-Ste-Justine/users-api-concourse.git
+    branch: {{branch}}
+    private_key: ((private-repo-key))
+    ignore_paths: [ci/]
+
+- name: git-tag-users-api
+  type: git
+  icon: github
+  check_every: 30s
+  source:
+    uri: git@github.com:Ferlab-Ste-Justine/users-api-concourse.git
+    branch: {{branch}}
+    private_key: ((private-repo-key))
+    tag_regex: v[0-9]+\.[0-9]+\.[0-9]+
+    tag_filter: v*
+    # ignore_paths: [ci/]
+
+- name: img-users-api
+  type: docker-image
+  icon: docker
+  source:
+    username: ((docker.username))
+    password: ((docker.password))
+    repository: ferlabcrsj/concourse-demo
+
+- name: img-users-api-tag
+  type: docker-image
+  icon: docker
+  source:
+    username: ((docker.username))
+    password: ((docker.password))
+    repository: ferlabcrsj/concourse-demo
+
+jobs:
+- name: build-test
+  # serial_groups: [version]
+  plan:
+  - get: git-users-api
+    trigger: true
+  - task: prepare-image
+    # file: git-users-api/ci/tasks/prepare-image.yml
+    config:
+      platform: linux
+      image_resource:
+        type: docker-image
+        source:
+          repository: concourse/git-resource
+      inputs:
+        - name: git-users-api
+      outputs:
+        - name: output
+      run:
+        path: bash
+        args:
+        - -c
+        - |
+          ROOT_FOLDER=$(pwd)
+
+          cp -R ${ROOT_FOLDER}/git-users-api/* ${ROOT_FOLDER}/output
+          rm -fr ${ROOT_FOLDER}/output/ci && rm -fr ${ROOT_FOLDER}/output/.git
+
+          pushd git-users-api
+              VERSION=`echo "$(git rev-parse --short HEAD)-$(date +'%s')"`
+          popd
+
+          echo "${VERSION}" > ${ROOT_FOLDER}/output/version
+  - put: img-users-api
+    params:
+      build: git-users-api
+      additional_tags: output/version
+
+- name: publish
+  serial_groups: [version]
+  plan:
+  - get: git-tag-users-api
+    trigger: true
+  - task: prep-for-tag
+    config:
+      platform: linux
+      image_resource:
+        type: docker-image
+        source:
+          repository: concourse/git-resource
+      inputs:
+        - name: git-tag-users-api
+      run:
+        path: sh
+        args:
+        - -c
+        - |
+          cd git-tag-users-api
+          tag=`cat .git/ref`
+          git rev-list -n 1 $tag > sha   
+      outputs:
+        - name: git-tag-users-api
+  - load_var: tag
+    file: git-tag-users-api/sha
+  - put: img-users-api-tag
+    inputs: ["git-tag-users-api"]
+    params:    
+      pull_repository: ferlabcrsj/concourse-demo
+      pull_tag: ((.:tag))
+      tag_file: git-tag-users-api/.git/ref
+      
+- name: test-pr
+  plan:
+  - get: pull-request
+    trigger: true
+    version: every
+  - put: pull-request
+    params:
+      path: pull-request
+      status: pending
+      context: test
+    get_params:
+      integration_tool: checkout
+  - task: unit-test
+    config:
+      platform: linux
+      image_resource:
+        type: docker-image
+        source: {repository: alpine/git, tag: "latest"}
+      inputs:
+        - name: pull-request
+      run:
+        path: /bin/sh
+        args:
+          - -xce
+          - |
+            cd pull-request
+            git log --graph --all --color --pretty=format:"%x1b[31m%h%x09%x1b[32m%d%x1b[0m%x20%s" > log.txt
+            cat log.txt
+  on_failure:
+    do: 
+      - put: pull-request
+        params:
+          path: pull-request
+          status: failure
+          context: test
+  on_success:
+    do: 
+      - put: pull-request
+        params:
+          path: pull-request
+          status: success
+          context: test
+  on_abort:
+    do: 
+      - put: pull-request
+        params:
+          path: pull-request
+          status: error
+          context: test
+  on_error:
+    do: 
+      - put: pull-request
+        params:
+          path: pull-request
+          status: error
+          context: test
+  # - put: pull-request
+  #   params:
+  #     path: pull-request
+  #     status: success
+
+- name: build-and-publish
+  # serial_groups: [version]
+  plan:
+  - get: git-users-api
+    trigger: true
+  - task: prepare-image
+    # file: git-users-api/ci/tasks/prepare-image.yml
+    config:
+      platform: linux
+      image_resource:
+        type: docker-image
+        source:
+          repository: concourse/git-resource
+      inputs:
+        - name: git-users-api
+      outputs:
+        - name: output
+      run:
+        path: bash
+        args:
+        - -c
+        - |
+          ROOT_FOLDER=$(pwd)
+
+          cp -R ${ROOT_FOLDER}/git-users-api/* ${ROOT_FOLDER}/output
+          rm -fr ${ROOT_FOLDER}/output/ci && rm -fr ${ROOT_FOLDER}/output/.git
+
+          pushd git-users-api
+              VERSION=`echo "$(git rev-parse --short HEAD)-$(date +'%s')"`
+          popd
+
+          echo "${VERSION}" > ${ROOT_FOLDER}/output/version
+  - task: build-image
+    privileged: true
+    config:
+      platform: linux
+      image_resource:
+        type: registry-image
+        source:
+          repository: concourse/oci-build-task
+      inputs:
+      # Source including Dockerfile
+      - name: git-users-api
+        path: .
+      # Output from prepare image
+      - name: output
+        path: .
+      outputs:
+      - name: image
+      run:
+        path: build
+  - put: img-users-api
+    params:
+      # Path is from above output and image.tar is the default name
+      image: image/image.tar
+      additional_tags: output/version
+  - put: img-users-api
+    params:
+      image: image/image.tar
+      additional_tags: git-users-api/.git/ref
